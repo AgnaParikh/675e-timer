@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toastmasters Timer</title>
+<style>
+  :root {
+    --none: #f4f4f2; --green: #1faa59; --yellow: #f5c518; --red: #d93025;
+    --bg: #1b1d22; --panel: #262930; --text: #f1f1f1; --muted: #9aa0aa; --accent: #4c8dff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  /* ---------- Display window: colour only ---------- */
+  body.display { background: var(--none); transition: background .15s; cursor: default; overflow: hidden; }
+  body.display[data-color="green"]  { background: var(--green); }
+  body.display[data-color="yellow"] { background: var(--yellow); }
+  body.display[data-color="red"]    { background: var(--red); }
+  body.display #app { display: none; }
+
+  /* ---------- Control window ---------- */
+  #app { max-width: 880px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+  .card { background: var(--panel); border-radius: 12px; padding: 14px 16px; }
+  h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  h2 { font-size: 12px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spread { justify-content: space-between; }
+  .btn { background: #343843; border: 2px solid transparent; border-radius: 8px; padding: 10px 14px; }
+  .btn:hover { background: #3d4250; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.sel { border-color: var(--accent); background: #2b3a5c; }
+  .types .btn { flex: 1 1 180px; text-align: left; }
+  .types small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  #clockWrap { text-align: center; padding: 10px 0 4px; border-radius: 12px; }
+  #clock { font-size: clamp(72px, 18vw, 160px); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  #thresholds { display: flex; justify-content: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .chip { padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; color: #111; }
+  .chip.g { background: var(--green); } .chip.y { background: var(--yellow); } .chip.r { background: var(--red); color: #fff; }
+  .chip.passed { outline: 3px solid #fff; }
+
+  .ctrl .btn { padding: 14px 22px; font-size: 18px; font-weight: 600; }
+  #startBtn { background: #1f7a45; } #startBtn:hover { background: #26935a; }
+
+  .swatches .btn { flex: 1 1 90px; font-weight: 600; color: #111; }
+  .swatches .sg { background: var(--green); } .swatches .sy { background: var(--yellow); }
+  .swatches .sr { background: var(--red); color: #fff; } .swatches .sn { background: var(--none); }
+  .swatches .btn.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--accent); }
+  .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .badge.auto { background: #2b3a5c; color: #bcd2ff; } .badge.manual { background: #7a3b00; color: #ffd9b3; }
+
+  .status { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  #preview { width: 54px; height: 32px; border-radius: 6px; border: 2px solid #555; background: var(--none); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #777; display: inline-block; margin-right: 6px; }
+  .dot.on { background: #3ddc84; }
+
+  input[type=text] { background: #1b1d22; border: 1px solid #444; color: var(--text); border-radius: 8px; padding: 10px 12px; font: inherit; flex: 1 1 200px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #3a3e48; }
+  th { color: var(--muted); font-weight: 600; }
+  .yes { color: #3ddc84; font-weight: 700; } .no { color: #ff6b61; font-weight: 700; }
+  .link { background: none; border: none; color: var(--accent); padding: 0 4px; }
+  .hint { font-size: 12px; color: var(--muted); }
+  kbd { background: #343843; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+  select, input[type=date] { background: #1b1d22; border: 1px solid #444; color: var(--text); border-radius: 8px; padding: 9px 10px; font: inherit; color-scheme: dark; }
+  label.f { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
+
+  /* ---------- Printable Timer Log (PDF export) ---------- */
+  #sheet { display: none; }
+  @media print {
+    html, body { background: #fff !important; color: #000 !important; }
+    #app { display: none !important; }
+    #sheet { display: block; font-family: Arial, Helvetica, sans-serif; color: #000; }
+    #sheet h1 { font-size: 22px; margin: 0 0 4px; color: #000; }
+    #sheet .date { margin: 10px 0 14px; font-size: 14px; }
+    #sheet h3 { font-size: 15px; margin: 16px 0 4px; color: #000; }
+    #sheet table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    #sheet th, #sheet td { border: 1px solid #000; padding: 6px 8px; height: 26px; color: #000; }
+    #sheet th { background: #e6e6e6; font-weight: 700; }
+    #sheet .foot { margin-top: 14px; font-size: 10px; color: #444; }
+    #sheet table { page-break-inside: avoid; }
+  }
+</style>
+<style id="pageStyle">@page { size: letter; margin: 14mm; }</style>
+</head>
+<body>
+<div id="app">
+  <div class="card row spread">
+    <h1>Toastmasters Timer &middot; Club 675E</h1>
+    <div class="status">
+      <span id="preview" title="What the display window is showing"></span>
+      <span><span class="dot" id="dot"></span><span id="dispStatus">Display not open</span></span>
+      <button class="btn" id="openDisplay">Open display window</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Speech type</h2>
+    <div class="row types" id="types"></div>
+  </div>
+
+  <div class="card" id="clockWrap">
+    <div id="clock">0:00</div>
+    <div id="thresholds"></div>
+  </div>
+
+  <div class="card row ctrl" style="justify-content:center">
+    <button class="btn" id="startBtn">Start</button>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="card">
+    <div class="row spread" style="margin-bottom:8px">
+      <h2 style="margin:0">Display colour</h2>
+      <span class="badge auto" id="modeBadge">AUTO</span>
+    </div>
+    <div class="row swatches">
+      <button class="btn sn" data-c="none">None <kbd>N</kbd></button>
+      <button class="btn sg" data-c="green">Green <kbd>G</kbd></button>
+      <button class="btn sy" data-c="yellow">Yellow <kbd>Y</kbd></button>
+      <button class="btn sr" data-c="red">Red <kbd>X</kbd></button>
+      <button class="btn" id="autoBtn">Back to Auto <kbd>A</kbd></button>
+    </div>
+    <p class="hint" style="margin:8px 0 0">Clicking a colour pins the display to it until you press Back to Auto. The clock keeps running.</p>
+  </div>
+
+  <div class="card">
+    <h2>Timer log</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="name" placeholder="Speaker name (optional)">
+      <button class="btn" id="logBtn">Log this time</button>
+      <button class="btn" id="copyBtn">Copy log</button>
+      <button class="btn" id="clearBtn">Clear</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <label class="f">Meeting date <input type="date" id="mdate"></label>
+      <label class="f">Paper <select id="paper"><option value="letter">Letter</option><option value="A4">A4</option></select></label>
+      <button class="btn" id="pdfBtn">Export PDF</button>
+      <span class="hint">Opens the print dialog &mdash; choose &ldquo;Save as PDF&rdquo; as the destination.</span>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Type</th><th>Requirement</th><th>Actual</th><th>Within time</th><th></th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    <p class="hint">Within time = actual time between the green and red marks. Shortcuts: <kbd>Space</kbd> start/pause, <kbd>R</kbd> reset, <kbd>1</kbd>-<kbd>4</kbd> speech type.</p>
+  </div>
+</div>
+
+<div id="sheet"></div>
+
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const isDisplay = params.has('display');
+  const SPEED = Math.max(1, Number(params.get('speed')) || 1); // testing aid: ?speed=30
+  const CH = 'toastmasters-timer-color';
+  const LS = 'toastmasters-timer-color';
+  const bc = ('BroadcastChannel' in window) ? new BroadcastChannel(CH) : null;
+
+  const COLORS = ['none', 'green', 'yellow', 'red'];
+  function applyColor(c) {
+    if (!COLORS.includes(c)) c = 'none';
+    document.body.dataset.color = c;
+    return c;
+  }
+
+  /* ================= DISPLAY WINDOW ================= */
+  if (isDisplay) {
+    document.body.classList.add('display');
+    document.title = 'Timer Display';
+    applyColor(localStorage.getItem(LS) || 'none');
+    const handle = (d) => { if (d && d.type === 'color') applyColor(d.color); };
+    window.addEventListener('message', e => handle(e.data));
+    if (bc) bc.onmessage = e => handle(e.data);
+    window.addEventListener('storage', e => { if (e.key === LS) applyColor(e.newValue); });
+    document.addEventListener('dblclick', () => {
+      if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
+    });
+    // heartbeat so the control window knows we're alive
+    const ping = () => {
+      const m = { type: 'hello' };
+      try { window.opener && window.opener.postMessage(m, '*'); } catch (_) {}
+      bc && bc.postMessage(m);
+    };
+    ping(); setInterval(ping, 1500);
+    return;
+  }
+
+  /* ================= CONTROL WINDOW ================= */
+  const TYPES = [
+    { id: 'tt',  label: 'Table Topics',  note: 'up to 2 min',   g: 60,  y: 90,  r: 120, cat: 'tt', reqTxt: 'up to 2 min' },
+    { id: 'ib',  label: 'Ice Breaker',   note: '4-6 min',       g: 240, y: 300, r: 360, cat: 'ps', reqTxt: '4–6 minutes' },
+    { id: 'sp',  label: 'Other speech',  note: '5-7 min',       g: 300, y: 360, r: 420, cat: 'ps', reqTxt: '5–7 minutes' },
+    { id: 'ev',  label: 'Evaluation',    note: '2-3 min',       g: 120, y: 150, r: 180, cat: 'ev', reqTxt: '2–3 minutes' },
+  ];
+  const $ = id => document.getElementById(id);
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  let type = TYPES[0];
+  let running = false, startedAt = 0, accumulated = 0;   // ms of *real* time
+  let override = null;                                    // null = auto
+  let displayWin = null, lastSent = null, lastHello = 0;
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem('tm-log') || '[]'); } catch (_) {}
+
+  const elapsed = () => ((running ? performance.now() - startedAt : 0) + accumulated) / 1000 * SPEED;
+
+  function autoColor(e) {
+    if (e >= type.r) return 'red';
+    if (e >= type.y) return 'yellow';
+    if (e >= type.g) return 'green';
+    return 'none';
+  }
+  const currentColor = () => override || autoColor(elapsed());
+
+  function send(c) {
+    lastSent = c;
+    try { localStorage.setItem(LS, c); } catch (_) {}
+    const m = { type: 'color', color: c };
+    try { displayWin && !displayWin.closed && displayWin.postMessage(m, '*'); } catch (_) {}
+    bc && bc.postMessage(m);
+    $('preview').style.background = `var(--${c})`;
+  }
+
+  function render() {
+    const e = elapsed();
+    $('clock').textContent = fmt(e);
+    const c = currentColor();
+    if (c !== lastSent) send(c);
+    document.body.dataset.color = '';
+    $('clockWrap').style.boxShadow = `inset 0 0 0 4px var(--${c === 'none' ? 'panel' : c})`;
+    document.querySelectorAll('.chip').forEach(ch => ch.classList.toggle('passed', e >= Number(ch.dataset.t)));
+    // display connection indicator
+    const alive = displayWin && !displayWin.closed && (performance.now() - lastHello < 4000);
+    const open = displayWin && !displayWin.closed;
+    $('dot').classList.toggle('on', !!(alive || open));
+    $('dispStatus').textContent = alive ? 'Display connected' : open ? 'Display opening…' : (performance.now() - lastHello < 4000 ? 'Display connected' : 'Display not open');
+  }
+
+  function renderTypes() {
+    $('types').innerHTML = '';
+    TYPES.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.className = 'btn' + (t === type ? ' sel' : '');
+      b.innerHTML = `${i + 1}. ${t.label}<small>${t.note}</small>`;
+      b.disabled = running;
+      b.onclick = () => selectType(t);
+      $('types').appendChild(b);
+    });
+    $('thresholds').innerHTML =
+      `<span class="chip g" data-t="${type.g}">Green ${fmt(type.g)}</span>` +
+      `<span class="chip y" data-t="${type.y}">Yellow ${fmt(type.y)}</span>` +
+      `<span class="chip r" data-t="${type.r}">Red ${fmt(type.r)}</span>`;
+  }
+
+  function selectType(t) {
+    if (running) return;
+    type = t; accumulated = 0; renderTypes(); render();
+  }
+
+  function setRunning(on) {
+    if (on === running) return;
+    if (on) { startedAt = performance.now(); }
+    else { accumulated += performance.now() - startedAt; }
+    running = on;
+    $('startBtn').textContent = running ? 'Pause' : (accumulated > 0 ? 'Resume' : 'Start');
+    renderTypes(); render();
+  }
+  function reset() {
+    running = false; accumulated = 0; startedAt = 0;
+    $('startBtn').textContent = 'Start';
+    renderTypes(); render();
+  }
+
+  function setOverride(c) {
+    override = c;
+    document.querySelectorAll('.swatches [data-c]').forEach(b => b.classList.toggle('sel', b.dataset.c === c));
+    const badge = $('modeBadge');
+    badge.textContent = c ? `MANUAL: ${c.toUpperCase()}` : 'AUTO';
+    badge.className = 'badge ' + (c ? 'manual' : 'auto');
+    render();
+  }
+
+  /* ---- log ---- */
+  function within(sec, t) { return sec >= t.g && sec <= t.r; }
+  function saveLog() { try { localStorage.setItem('tm-log', JSON.stringify(log)); } catch (_) {} }
+  function renderLog() {
+    $('logBody').innerHTML = '';
+    log.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(r.name) || '&ndash;'}</td><td>${esc(r.type)}</td><td>${esc(r.req)}</td><td>${esc(r.actual)}</td>` +
+        `<td class="${r.ok ? 'yes' : 'no'}">${r.ok ? 'Y' : 'N'}</td><td><button class="link" data-i="${i}">remove</button></td>`;
+      $('logBody').appendChild(tr);
+    });
+  }
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  $('logBody').addEventListener('click', e => {
+    const i = e.target.dataset.i; if (i == null) return;
+    log.splice(Number(i), 1); saveLog(); renderLog();
+  });
+  $('logBtn').onclick = () => {
+    const sec = elapsed();
+    if (running) setRunning(false);
+    log.push({ name: $('name').value.trim(), type: type.label, cat: type.cat, reqTxt: type.reqTxt, req: `${fmt(type.g)}–${fmt(type.r)}`,
+               actual: fmt(sec), ok: within(sec, type) });
+    saveLog(); renderLog(); $('name').value = '';
+  };
+  $('copyBtn').onclick = async () => {
+    const txt = ['Name\tType\tRequirement\tActual\tWithin time (Y/N)']
+      .concat(log.map(r => [r.name, r.type, r.req, r.actual, r.ok ? 'Y' : 'N'].join('\t'))).join('\n');
+    try { await navigator.clipboard.writeText(txt); $('copyBtn').textContent = 'Copied!'; }
+    catch (_) { $('copyBtn').textContent = 'Copy failed'; }
+    setTimeout(() => $('copyBtn').textContent = 'Copy log', 1500);
+  };
+  /* ---- PDF export (print the log in the 675E "Timer Log" layout) ---- */
+  try { $('mdate').value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10); } catch (_) {}
+  function buildSheet() {
+    const meta = r => { const t = TYPES.find(x => x.label === r.type) || {}; return { cat: r.cat || t.cat || 'ps', reqTxt: r.reqTxt || t.reqTxt || r.req }; };
+    const rows = { tt: [], ps: [], ev: [] };
+    log.forEach(r => { const m = meta(r); rows[m.cat].push({ ...r, ...m }); });
+    const yn = r => r.ok ? 'Y' : 'N';
+    const pad = (arr, n, cols) => { const out = arr.slice(); while (out.length < n) out.push(null); return out; };
+    const tr = (cells) => '<tr>' + cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>';
+    const section = (title, head, list, min, map) =>
+      `<h3>${title}</h3><table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>` +
+      pad(list, min).map(r => r ? tr(map(r)) : tr(head.map(() => ''))).join('') + '</tbody></table>';
+    const d = $('mdate').value;
+    const dateTxt = d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '_________________________';
+    $('sheet').innerHTML =
+      `<h1>Timer Log</h1><div class="date"><b>Meeting Date:</b> ${esc(dateTxt)}</div>` +
+      section('Table Topics&reg;', ['Name', 'Time', 'Within time (Y/N)'], rows.tt, 8, r => [r.name, r.actual, yn(r)]) +
+      section('Prepared Speeches', ['Name', 'Speech Time Requirement', 'Actual Time', 'Within time (Y/N)'], rows.ps, 4, r => [r.name, r.reqTxt, r.actual, yn(r)]) +
+      section('Evaluations', ['Name', 'Actual Time', 'Within time (Y/N)'], rows.ev, 4, r => [r.name, r.actual, yn(r)]) +
+      '<div class="foot">Timer Script and Log &middot; Item 675E</div>';
+  }
+  $('pdfBtn').onclick = () => {
+    buildSheet();
+    $('pageStyle').textContent = `@page { size: ${$('paper').value}; margin: 14mm; }`;
+    const prev = document.title;
+    document.title = 'Timer Log ' + ($('mdate').value || '');
+    window.print();
+    setTimeout(() => { document.title = prev; }, 500);
+  };
+  $('clearBtn').onclick =() => { if (log.length && confirm('Clear the whole log?')) { log = []; saveLog(); renderLog(); } };
+
+  /* ---- display window ---- */
+  $('openDisplay').onclick = () => {
+    const url = location.href.split('#')[0].replace(/[?].*$/, '') + '?display';
+    displayWin = window.open(url, 'timerDisplay', 'width=900,height=600');
+    lastSent = null; // force resend
+    setTimeout(() => send(currentColor()), 400);
+    setTimeout(() => send(currentColor()), 1200);
+    if (!displayWin) $('dispStatus').textContent = 'Popup blocked – allow popups';
+  };
+  const onHello = d => { if (d && d.type === 'hello') { lastHello = performance.now(); if (lastSent) send(lastSent); } };
+  window.addEventListener('message', e => onHello(e.data));
+  if (bc) bc.onmessage = e => onHello(e.data);
+
+  /* ---- wiring ---- */
+  $('startBtn').onclick = () => setRunning(!running);
+  $('resetBtn').onclick = reset;
+  document.querySelectorAll('.swatches [data-c]').forEach(b => b.onclick = () => setOverride(b.dataset.c));
+  $('autoBtn').onclick = () => setOverride(null);
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === ' ') { e.preventDefault(); setRunning(!running); }
+    else if (k === 'r') reset();
+    else if (k === 'g') setOverride('green');
+    else if (k === 'y') setOverride('yellow');
+    else if (k === 'x') setOverride('red');
+    else if (k === 'n') setOverride('none');
+    else if (k === 'a') setOverride(null);
+    else if (/^[1-4]$/.test(k)) selectType(TYPES[Number(k) - 1]);
+  });
+
+  renderTypes(); renderLog(); setOverride(null);
+  setInterval(render, 100);
+})();
+</script>
+</body>
+</html>
