@@ -65,6 +65,14 @@
   .link { background: none; border: none; color: var(--accent); padding: 0 4px; }
   .hint { font-size: 12px; color: var(--muted); }
   kbd { background: #343843; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+  .stack { display: grid; gap: 14px; }
+  .stack[hidden] { display: none; }
+  .tabs .btn { min-width: 110px; font-weight: 600; }
+  .help p, .help li { line-height: 1.5; font-size: 15px; }
+  .help p { margin: 0 0 10px; } .help ul, .help ol { margin: 0 0 10px; padding-left: 22px; }
+  .help li { margin-bottom: 6px; }
+  .help a { color: var(--accent); }
+  .help code { background: #343843; border-radius: 4px; padding: 1px 6px; font-size: 13px; }
   select, input[type=date] { background: #1b1d22; border: 1px solid #444; color: var(--text); border-radius: 8px; padding: 9px 10px; font: inherit; color-scheme: dark; }
   label.f { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
 
@@ -97,6 +105,72 @@
     </div>
   </div>
 
+  <div class="row tabs">
+    <button class="btn sel" id="tabTimer">Timer</button>
+    <button class="btn" id="tabHelp">Help</button>
+  </div>
+
+  <div id="helpView" class="stack" hidden>
+    <div class="card help">
+      <h2>Overview</h2>
+      <p>A browser-based timer for the Timer role at Toastmasters Club 675E meetings. It shows green, yellow and red cards at the Item 675E times for each speech type, on a display window only the audience sees, while the clock stays on your own screen.</p>
+    </div>
+    <div class="card help">
+      <h2>Features</h2>
+      <p>The card changes colour automatically at the times from the 675E script:</p>
+      <table>
+        <thead><tr><th>Speech type</th><th>Green</th><th>Yellow</th><th>Red</th></tr></thead>
+        <tbody>
+          <tr><td>Table Topics (up to 2 min)</td><td>1:00</td><td>1:30</td><td>2:00</td></tr>
+          <tr><td>Ice Breaker (4-6 min)</td><td>4:00</td><td>5:00</td><td>6:00</td></tr>
+          <tr><td>Other speech (5-7 min)</td><td>5:00</td><td>6:00</td><td>7:00</td></tr>
+          <tr><td>Evaluation (2-3 min)</td><td>2:00</td><td>2:30</td><td>3:00</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li><b>Private clock:</b> the control window shows the clock and thresholds. The separate display window shows only the colour, with no text or numbers.</li>
+        <li><b>Speech type selector:</b> four buttons, locked while the clock runs so you can't change type by accident.</li>
+        <li><b>Manual override:</b> pin the display to green, yellow, red or none if something misbehaves. A MANUAL badge shows, and Back to Auto returns to the clock.</li>
+        <li><b>Timer log:</b> record each speaker's name, time and whether they were within time, then export it as a PDF.</li>
+        <li><b>Shortcuts:</b> <kbd>Space</kbd> starts or pauses, <kbd>R</kbd> resets, <kbd>1</kbd>-<kbd>4</kbd> pick the type, <kbd>G</kbd> / <kbd>Y</kbd> / <kbd>X</kbd> / <kbd>N</kbd> set green, yellow, red or none, <kbd>A</kbd> returns to auto.</li>
+      </ul>
+    </div>
+    <div class="card help">
+      <h2>What to share</h2>
+      <p>Send the group one link; nothing needs installing.</p>
+      <ul>
+        <li><b>App link:</b> <span id="helpLink"></span>, a public page that works in Chrome.</li>
+        <li><b>Offline copy (optional):</b> attach <code>index.html</code> to the email; recipients save it and double-click to open it in Chrome.</li>
+        <li><b>Tell them:</b> allow popups for the page, or the display window won't open. Each person's timer log stays in their own browser.</li>
+      </ul>
+    </div>
+    <div class="card help">
+      <h2>How to use it in a meeting</h2>
+      <ol>
+        <li>Open the app in Chrome and click <b>Open display window</b>.</li>
+        <li>On Zoom or Meet, share only the display window (double-click it for fullscreen). Keep the control window to yourself.</li>
+        <li>Pick the speech type before the speaker starts.</li>
+        <li>Press <b>Start</b> (or Space) when they begin. The display changes colour at the green, yellow and red marks.</li>
+        <li>Press <b>Pause</b> when they finish, optionally type their name, and click <b>Log this time</b>.</li>
+        <li>Press <b>Reset</b> before the next speaker.</li>
+      </ol>
+      <p>If the colour is wrong, click a colour button to pin it, then <b>Back to Auto</b> to hand control back to the clock. Keep the control window in its own window, not a background tab, so the browser doesn't slow the clock.</p>
+    </div>
+    <div class="card help">
+      <h2>Exporting the timer log as PDF</h2>
+      <p>The export prints the log in the layout of page 2 of the 675E Timer Script and Log.</p>
+      <ol>
+        <li>Log each speaker during the meeting with <b>Log this time</b>.</li>
+        <li>In the Timer log card, set the <b>Meeting date</b> (it defaults to today) and choose <b>Letter</b> or <b>A4</b>.</li>
+        <li>Click <b>Export PDF</b>. The browser's print dialog opens.</li>
+        <li>Set the destination to <b>Save as PDF</b> and save.</li>
+      </ol>
+      <p>The PDF has three tables: Table Topics (Name, Time, Within time), Prepared Speeches (Name, Speech Time Requirement, Actual Time, Within time) and Evaluations (Name, Actual Time, Within time). Ice Breaker and Other speech both go under Prepared Speeches. Blank rows are left in each table for handwriting extra entries.</p>
+      <p>&ldquo;Within time&rdquo; is Y when the actual time falls between the green and red marks, and N otherwise.</p>
+    </div>
+  </div>
+
+  <div id="timerView" class="stack">
   <div class="card">
     <h2>Speech type</h2>
     <div class="row types" id="types"></div>
@@ -147,6 +221,7 @@
     </table>
     <p class="hint">Within time = actual time between the green and red marks. Shortcuts: <kbd>Space</kbd> start/pause, <kbd>R</kbd> reset, <kbd>1</kbd>-<kbd>4</kbd> speech type.</p>
   </div>
+  </div><!-- /timerView -->
 </div>
 
 <div id="sheet"></div>
@@ -360,6 +435,20 @@
   window.addEventListener('message', e => onHello(e.data));
   if (bc) bc.onmessage = e => onHello(e.data);
 
+  /* ---- Help tab ---- */
+  function showTab(help) {
+    $('helpView').hidden = !help; $('timerView').hidden = help;
+    $('tabHelp').classList.toggle('sel', help); $('tabTimer').classList.toggle('sel', !help);
+  }
+  $('tabTimer').onclick = () => showTab(false);
+  $('tabHelp').onclick = () => showTab(true);
+  (() => {
+    const l = document.createElement('a');
+    const u = location.protocol.startsWith('http') ? location.href.split(/[?#]/)[0] : '';
+    if (u) { l.href = u; l.textContent = u.replace(/^https?:\/\//, '').replace(/\/$/, ''); $('helpLink').appendChild(l); }
+    else $('helpLink').textContent = 'the page address you opened';
+  })();
+
   /* ---- wiring ---- */
   $('startBtn').onclick = () => setRunning(!running);
   $('resetBtn').onclick = reset;
@@ -367,7 +456,7 @@
   $('autoBtn').onclick = () => setOverride(null);
 
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === ' ') { e.preventDefault(); setRunning(!running); }
     else if (k === 'r') reset();
